@@ -9,40 +9,8 @@
     <atom:link href="http://example.com/rss2.xml" rel="self" type="application/rss+xml"/>
     
     <description>能请您打开B站给嘉然向晚珈乐乃琳贝拉点个关注吗</description>
-    <pubDate>Tue, 01 Feb 2022 14:36:41 GMT</pubDate>
+    <pubDate>Mon, 31 Jan 2022 10:27:07 GMT</pubDate>
     <generator>http://hexo.io/</generator>
-    
-    <item>
-      <title>test</title>
-      <link>http://example.com/2022/02/01/test/</link>
-      <guid>http://example.com/2022/02/01/test/</guid>
-      <pubDate>Tue, 01 Feb 2022 14:20:50 GMT</pubDate>
-      
-        
-        
-      <description>&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;/p&gt;
-&lt;p&gt;这是一个测试文档&lt;</description>
-        
-      
-      
-      
-      <content:encoded><![CDATA[<p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p><p>这是一个测试文档</p>]]></content:encoded>
-      
-      
-      
-      <category domain="http://example.com/tags/%E6%B5%8B%E8%AF%95/">测试</category>
-      
-      
-      <comments>http://example.com/2022/02/01/test/#disqus_thread</comments>
-      
-    </item>
     
     <item>
       <title>Hello World</title>
