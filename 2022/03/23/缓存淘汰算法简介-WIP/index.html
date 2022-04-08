@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://q1.qlogo.cn/g?b=qq&nk=2214225911&s=640">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://q1.qlogo.cn/g?b=qq&nk=2214225911&s=640">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"i-have-no-name-555.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"manual","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="&amp;ensp;&amp;ensp;&amp;ensp;&amp;ensp;本文介绍了缓存的基本概念与常见的缓存淘汰算法，以及一些进阶的缓存淘汰算法.如LIRS、ARC、W-Tiny-LFU等。 前置知识：基本的数据结构与算法">
+<meta property="og:type" content="article">
+<meta property="og:title" content="缓存淘汰算法简介 WIP">
+<meta property="og:url" content="https://i-have-no-name-555.github.io/2022/03/23/%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95%E7%AE%80%E4%BB%8B-WIP/index.html">
+<meta property="og:site_name" content="不知名嘉心糖の博客">
+<meta property="og:description" content="&amp;ensp;&amp;ensp;&amp;ensp;&amp;ensp;本文介绍了缓存的基本概念与常见的缓存淘汰算法，以及一些进阶的缓存淘汰算法.如LIRS、ARC、W-Tiny-LFU等。 前置知识：基本的数据结构与算法">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i-have-no-name-555.github.io/images/pasted-0.png">
+<meta property="article:published_time" content="2022-03-23T08:12:00.000Z">
+<meta property="article:modified_time" content="2022-04-08T18:17:28.284Z">
+<meta property="article:author" content="不知名嘉心糖">
+<meta property="article:tag" content="缓存">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i-have-no-name-555.github.io/images/pasted-0.png">
+
+<link rel="canonical" href="https://i-have-no-name-555.github.io/2022/03/23/%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95%E7%AE%80%E4%BB%8B-WIP/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>缓存淘汰算法简介 WIP | 不知名嘉心糖の博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/rss2.xml" title="不知名嘉心糖の博客" type="application/rss+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">不知名嘉心糖の博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>日程表</a>
+
+  </li>
+        <li class="menu-item menu-item-sitemap">
+
+    <a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://i-have-no-name-555.github.io/2022/03/23/%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95%E7%AE%80%E4%BB%8B-WIP/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://q1.qlogo.cn/g?b=qq&nk=2214225911&s=640">
+      <meta itemprop="name" content="不知名嘉心糖">
+      <meta itemprop="description" content="能请您打开B站给嘉然向晚珈乐乃琳贝拉点个关注吗">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="不知名嘉心糖の博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          缓存淘汰算法简介 WIP
+        </h1>
+
+        <div class="post-meta">
+
+        
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-03-23 16:12:00" itemprop="dateCreated datePublished" datetime="2022-03-23T16:12:00+08:00">2022-03-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-04-09 02:17:28" itemprop="dateModified" datetime="2022-04-09T02:17:28+08:00">2022-04-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>&ensp;&ensp;&ensp;&ensp;本文介绍了缓存的基本概念与常见的缓存淘汰算法，以及一些进阶的缓存淘汰算法.如LIRS、ARC、W-Tiny-LFU等。</p>
+<p>前置知识：基本的数据结构与算法</p>
+<span id="more"></span>
+
+<h4 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h4><p> &ensp;&ensp;&ensp;&ensp;前段时间由于插队了一个高优的项目导致倒排期，一直在加班赶工期，没有时间做技术产出，现在项目临近上线，总算有了一些时间，来把博客写一写。年前在看CSAPP，算是把上课没好好听的计组再认真的补了一遍，学习的过程中有所感悟，加上学习公司的缓存组件时又学了几个淘汰算法，遂把常见的缓存淘汰的算法做一个总结。缓存的另一些问题，如一致性、穿透、击穿、雪崩等暂不做描述，后续可能会单独开一章。</p>
+<h4 id="缓存简介"><a href="#缓存简介" class="headerlink" title="缓存简介"></a>缓存简介</h4><p>  &ensp;&ensp;&ensp;&ensp;缓存是计算机科学领域中最常见的性能优化方式之一，在整个计算机领域中无处不在。要讲缓存就不得不先了解<strong>计算机存储器结构体系</strong>与<strong>局部性原理</strong>，他们是缓存存在的前提条件。而要理解计算机存储结构体系就要先理解程序的局部性原理。<strong>局部性原理是指CPU访问存储器时，无论是存取指令还是存取数据，所访问的存储单元都趋于聚集在一个较小的连续区域中。</strong>局部性原理又分为 时间局部性 和 空间局部性，时间局部性指的是已经访问过的存储位置很有可能再次被访问，空间局部性指的是已经访问过的存储位置附近的存储位置很有可能也会被再次访问。<br>  &ensp;&ensp;&ensp;&ensp;上述的解释比较抽象，具体举例来说，程序中通常存在大量的循环，循环中会多次执行相同的代码，访问同一些变量，这体现了程序的时间局部性；我们时常会做一些遍历数组的操作，数组的元素在内存中又是连续的，这体现了程序的空间局部性。又比如说在函数或方法中定义的局部变量通常都会多次访问，并且它们在栈中连续存储，这同时体现了程序的时间局部性和空间局部性。这样的例子有许多，局部性原理的体现在程序中几乎无处不在。<br>  &ensp;&ensp;&ensp;&ensp; 说完了局部性原理我们就可以来了解计算机存储器结构体系。任何东西都是有成本的，对于一个存储器来说，存取的速度就越快，就意味着相应的制作工艺就越精良，对应的制作成本就越高。你可以打开购物软件看看同样大小的内存条和硬盘对比一下价格直观的感受一下。这种制作成本决定了计算机不可能全部使用非常优秀的存储器来进行存储，否则太贵了。但我们也不能全使用非常大但是性能很差的存储器来进行存储，因为太慢了。<br>   &ensp;&ensp;&ensp;&ensp;在局部性原理的前提下，我们可以认为大部分的存储不会经常被访问，我们经常访问的内存其实很少，于是我们可以将所有的数据存在一个虽然读取速度慢一点但是大一些的存储器里，然后将常用的数据存储在一个读取速度快但是小一些的存储器里，在需要用某个数据而小存储器里没有的时候再去大的存储器中取，根据局部性原理，我们可以从大的存储器中一次取多个连续的数据，然后存到小的存储器中，已经存满了如果小的存储器，就从小的存储器中选一些数据删掉换成新取出的数据。如果我们经常在小存储器中取到数据，即使偶尔需要到大存储器中取数据再存到小存储器中，依然是很赚的。这样我们就可以在较低的成本下获取较高的性能。出于制作成本的考虑，最终我们实际应用的是一个金字塔型的存储器结构体系，在《CSAPP》中有如下图</p>
+<p><img src="../../../../images/pasted-0.png" alt="upload successful"></p>
+<p>   &ensp;&ensp;&ensp;&ensp;在上文中已经提到，我们使用分级的存储器来进行存储，上层存储器没有的时候我们到下层存储器中取，然后存入上层存储器中，上层存储器存满时选择部分数据抛弃然后将新数据存入上层存储器中。这其实就是缓存的基本思想。在整个存储器体系中，<strong>每一个上层的存储器本质上就是下层存储器的缓存。</strong>而选择将哪些数据抛弃的算法就是缓存淘汰算法。<br>     &ensp;&ensp;&ensp;&ensp;我们使用缓存的目的是在较低的成本下获取较高的性能，因此缓存最关注的指标是缓存命中率，即在缓存中查到数据的次数/查数据的次数，当然，除此之外缓存的可用空间也要尽量大。在给定的大小下，提高缓存命中率最重要的就是缓存淘汰算法。在计算机科学中有一条定律叫做 没有银弹，在不同的场景下最优秀的缓存算法是不同的，这也就促使了一个个缓存淘汰算法的诞生和应用。</p>
+<h4 id="基本的缓存淘汰算法"><a href="#基本的缓存淘汰算法" class="headerlink" title="基本的缓存淘汰算法"></a>基本的缓存淘汰算法</h4><h5 id="OPT"><a href="#OPT" class="headerlink" title="OPT"></a>OPT</h5><p> &ensp;&ensp;&ensp;&ensp;OPT是optimal的简写，译为 最优 。OPT算法顾名思义，它是最优的算法，它淘汰的是那些以后永远不再使用、或是在最长的时间内不再使用的数据。那既然有了最优化的算法，还要别的算法干什么呢？这是因为OPT算法不可能实现，除非你事先知道数据的全部访问顺序。那一个不可能实现的算法有什么用呢？其实我们学习OPT算法是为了衡量其他算法的缓存命中率，因为任何算法的缓存命中率都不可能超过OPT算法，它代表着在给定的数据访问顺序和缓存空间大小条件下的最高缓存命中率。</p>
+<h5 id="FIFO、FILO、RR"><a href="#FIFO、FILO、RR" class="headerlink" title="FIFO、FILO、RR"></a>FIFO、FILO、RR</h5><p> &ensp;&ensp;&ensp;&ensp;这是三种见名知意的算法。FIFO是First In First Out，FILO是First In Last Out，分别使用队列和栈实现即可。RR是 Random Replacement，随机替换算法，即随机选择一个数据淘汰</p>
+<h5 id="LRU与LFU"><a href="#LRU与LFU" class="headerlink" title="LRU与LFU"></a>LRU与LFU</h5><p> &ensp;&ensp;&ensp;&ensp;LRU和LFU是最常见和最重要的两种算法，但它们也有缺陷，不能适用于任何场景。正如各个语言的sort算法都不会直接使用快排一样，大多数时候我们使用的是基于LRU或LFU改进的算法。不过在介绍这些改进算法之前，我们需要先介绍LRU和LFU。</p>
+<h6 id="LRU"><a href="#LRU" class="headerlink" title="LRU"></a>LRU</h6><p> &ensp;&ensp;&ensp;&ensp;LRU的全称是Least Recently Used，最近最少使用算法。它选择最近最少使用的数据进行淘汰，通常认为LRU是相当优秀的缓存淘汰算法。同时，也是在面试时各个算法中最容易被要求实现的一个。</p>
+<p>  &ensp;&ensp;&ensp;&ensp;要实现LRU算法，只需要使用哈希表＋双向链表即可。在哈希表中存储双向链表的结点，结点中存储需要的数据，每次取用缓存中的数据时，将对应的值结点从链表中转移到链表头部；插入数据时存入哈希表并插到链表头部即可。当需要淘汰数据时，直接淘汰链表末端的数据并从哈希表中删去即可。由于时间不太充裕，笔者不提供代码实现，有需要可以直接参考LeetCode题解<a target="_blank" rel="noopener" href="https://leetcode-cn.com/problems/lru-cache/solution/">https://leetcode-cn.com/problems/lru-cache/solution/</a><br>  另外，如果你使用的是Java语言，Java标准库已经原生携带了LinkedHashMap的数据结构并提供了LRU的功能，你只需要继承LinkedHashMap并重写removeEldestEntry方法，在外层封装成缓存ADT即可。</p>
+<p>   &ensp;&ensp;&ensp;&ensp; 从算法上很容易看出来LRU非常强调时间局部性，显然绝大多数情况下它的命中率会比FIFO、FILO、RR这样的算法高很多，在这些基础的算法中，LRU被认为是最优秀的一个，但LRU也带来了一些问题。最大的问题是如果元素只被使用一次的情况，每个元素都会被使用但只被使用一次，每一个元素都会被移到链表的一端占用了最重要的位置，但之后又不再使用。最明显的例子就是遍历，如果进行一次较大规模的遍历，就会导致缓存中大量的空间被这些不再使用的数据占用，而那些真正需要频繁使用的热点数据被淘汰。</p>
+<h6 id="LFU"><a href="#LFU" class="headerlink" title="LFU"></a>LFU</h6><p>   &ensp;&ensp;&ensp;&ensp; LFU的全称是 Least Frequently Used ，最不经常使用算法。它选择使用次数最少的数据淘汰，如果使用次数最少的数据有多个，从其中选择最近最少使用的数据进行淘汰。</p>
+<p> &ensp;&ensp;&ensp;&ensp;LFU在实现上是类似LRU的。我们需要使用两个哈希表和若干个双向链表。一个哈希表维护查询数据的键以及一个双向链表结点，结点中存储数据和当前使用次数，另一个哈希表以使用次数为键存储一个双向链表，即HashMap&lt;K,Node&gt;与HashMap&lt;Interger,LinkedList&lt; Node &gt;&gt;  ， 再维护一个int记录当前缓存中的最小使用次数。<br> &ensp;&ensp;&ensp;&ensp;当从缓存中获取到数据时，从当前链表中删除，将使用次数+1插入到下一个链表的首部，并检查是否需要更新最小使用次数的值；插入数据时，更新最小使用次数为1，插入到1对应链表的头部；当需要进行淘汰时，选择最小使用次数对应链表的尾端数据淘汰，并检查是否需要更新最小使用次数的值即可。同样的，笔者不提供代码实现，有需要可以直接参考LeetCode题解<a target="_blank" rel="noopener" href="https://leetcode-cn.com/problems/lfu-cache/solution/">https://leetcode-cn.com/problems/lfu-cache/solution/</a><br>  &ensp;&ensp;&ensp;&ensp;LFU解决了LRU提出的问题，当进行遍历时，如果有进行淘汰的必要，淘汰的都将是那些由于遍历加入到缓存中的数据。但LFU也有缺陷，一些数据可能在过去是热点数据，但实际上已经不是热点数据了，但它们会一直占据着缓存空间导致缓存的可用空间变小。比如一个新闻，短时间内有了百万千万的浏览量，一段时间后它就不再有时效性，但有如此高的使用次数想要淘汰它是不可能的。</p>
+<h4 id="基于LRU与LFU的简单缓存淘汰算法"><a href="#基于LRU与LFU的简单缓存淘汰算法" class="headerlink" title="基于LRU与LFU的简单缓存淘汰算法"></a>基于LRU与LFU的简单缓存淘汰算法</h4><p> &ensp;&ensp;&ensp;&ensp;接下来我们介绍一些基于LRU和LFU做简单改动的算法。</p>
+<h5 id="Clock与Clock-Pro"><a href="#Clock与Clock-Pro" class="headerlink" title="Clock与Clock-Pro"></a>Clock与Clock-Pro</h5><p>  &ensp;&ensp;&ensp;&ensp;我们在上文中提到，LRU通常被认为是很优秀的缓存淘汰算法，但除了上述的缺点之外， 它还有一个缺陷，那就是实现较为复杂。我们说过缓存在计算机领域中无处不在，在一些比较底层的地方，复杂的实现会导致较多的操作从而导致性能降低，以及在一些需要硬件直接实现缓存淘汰的地方复杂的算法会带来复杂的电路结构，因此我们需要一些简单而较为高效的淘汰算法。Clock就是这样的算法，它是LRU的一种近似，用于操作系统换页。一般来说，应用软件的缓存中并不会使用Clock及其改进的算法，但也有PostgreSQL这样使用基于Clock算法改进的算法进行缓存淘汰的软件。</p>
+<h6 id="Clock"><a href="#Clock" class="headerlink" title="Clock"></a>Clock</h6><p>  &ensp;&ensp;&ensp;&ensp;在介绍Clock-Pro算法之前我们先介绍一下Clock算法。Clock算法又叫NRU，not recently used，Clock算法使用一个基于数组的一个环形的列表连接所有元素并给每一个元素设置一个访问标识位标记是否使用，用一个指针标识当前位置。当访问缓存中的某一元素或写入某一元素时，将其访问位 置为1；当需要进行缓存淘汰时，检查当前元素访问位，如果为0则淘汰，如果为1则置为0，然后顺序访问下一个元素重复检查操作即可。</p>
+<h4 id="推荐阅读-amp-参考资料"><a href="#推荐阅读-amp-参考资料" class="headerlink" title="推荐阅读&amp;参考资料"></a>推荐阅读&amp;参考资料</h4><ul>
+<li><a target="_blank" rel="noopener" href="https://item.jd.com/12006637.html">《CSAPP》</a>，中译名《深入理解计算机系统》</li>
+<li><a target="_blank" rel="noopener" href="https://leetcode-cn.com/problems/lru-cache/solution/">LeetCode题解 lru</a></li>
+<li><a target="_blank" rel="noopener" href="https://leetcode-cn.com/problems/lfu-cache/solution/">LeetCode题解 lfu</a></li>
+<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1464670">缓存淘汰算法LIRS原理与实现</a></li>
+<li><a target="_blank" rel="noopener" href="http://blog.sina.com.cn/s/blog_6472c4cc0102dvan.html">2.4 Cache Block的替换算法2</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/352910565">缓存淘汰算法（LFU、LRU、ARC、FIFO、2Q）分析</a></li>
+<li><a target="_blank" rel="noopener" href="https://jishuin.proginn.com/p/763bfbd3553d">万字详解本地缓存之王 Caffeine</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+     
+   <div>
+     <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:18px;">-------------本文结束,感谢您的阅读！-------------</div>
+         <div style="text-align:center;color: #ccc;font-size:18px;">-------------如果对您有帮助，能请您打开b站关注嘉然向晚珈乐乃琳贝拉吗，谢谢！-------------</div>
+    
+</div>
+       </div>
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>不知名嘉心糖
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://i-have-no-name-555.github.io/2022/03/23/%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95%E7%AE%80%E4%BB%8B-WIP/" title="缓存淘汰算法简介 WIP">https://i-have-no-name-555.github.io/2022/03/23/缓存淘汰算法简介-WIP/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%BC%93%E5%AD%98/" rel="tag"># 缓存</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/02/02/README/" rel="prev" title="README">
+      <i class="fa fa-chevron-left"></i> README
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="lv-container" data-id="city" data-uid="MTAyMC81NTM2NS8zMTgzMg=="></div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BC%93%E5%AD%98%E7%AE%80%E4%BB%8B"><span class="nav-number">2.</span> <span class="nav-text">缓存简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E7%9A%84%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">基本的缓存淘汰算法</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#OPT"><span class="nav-number">3.1.</span> <span class="nav-text">OPT</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#FIFO%E3%80%81FILO%E3%80%81RR"><span class="nav-number">3.2.</span> <span class="nav-text">FIFO、FILO、RR</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#LRU%E4%B8%8ELFU"><span class="nav-number">3.3.</span> <span class="nav-text">LRU与LFU</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#LRU"><span class="nav-number">3.3.1.</span> <span class="nav-text">LRU</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#LFU"><span class="nav-number">3.3.2.</span> <span class="nav-text">LFU</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8ELRU%E4%B8%8ELFU%E7%9A%84%E7%AE%80%E5%8D%95%E7%BC%93%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AE%97%E6%B3%95"><span class="nav-number">4.</span> <span class="nav-text">基于LRU与LFU的简单缓存淘汰算法</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Clock%E4%B8%8EClock-Pro"><span class="nav-number">4.1.</span> <span class="nav-text">Clock与Clock-Pro</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#Clock"><span class="nav-number">4.1.1.</span> <span class="nav-text">Clock</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8E%A8%E8%8D%90%E9%98%85%E8%AF%BB-amp-%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">5.</span> <span class="nav-text">推荐阅读&amp;参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="不知名嘉心糖"
+      src="https://q1.qlogo.cn/g?b=qq&nk=2214225911&s=640">
+  <p class="site-author-name" itemprop="name">不知名嘉心糖</p>
+  <div class="site-description" itemprop="description">能请您打开B站给嘉然向晚珈乐乃琳贝拉点个关注吗</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2022/1/31 – 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">不知名嘉心糖</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">7k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">6 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+
+    <script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+    <span id="busuanzi_container_site_pv">总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <span class="post-meta-divider">|</span>
+    <span id="busuanzi_container_site_uv">总访客数<span id="busuanzi_value_site_uv"></span>人</span>
+    <span class="post-meta-divider">|</span>
+<!-- 不蒜子计数初始值纠正 -->
+<script>
+$(document).ready(function() {
+
+    var int = setInterval(fixCount, 50);  // 50ms周期检测函数
+    var countOffset = 20000;  // 初始化首次数据
+
+    function fixCount() {            
+       if (document.getElementById("busuanzi_container_site_pv").style.display != "none")
+        {
+            $("#busuanzi_value_site_pv").html(parseInt($("#busuanzi_value_site_pv").html()) + countOffset); 
+            clearInterval(int);
+        }                  
+        if ($("#busuanzi_container_site_pv").css("display") != "none")
+        {
+            $("#busuanzi_value_site_uv").html(parseInt($("#busuanzi_value_site_uv").html()) + countOffset); // 加上初始数据 
+            clearInterval(int); // 停止检测
+        }  
+    }
+       	
+});
+</script> 
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+NexT.utils.loadComments(document.querySelector('#lv-container'), () => {
+  window.livereOptions = {
+    refer: location.pathname.replace(CONFIG.root, '').replace('index.html', '')
+  };
+  (function(d, s) {
+    var j, e = d.getElementsByTagName(s)[0];
+    if (typeof LivereTower === 'function') { return; }
+    j = d.createElement(s);
+    j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+    j.async = true;
+    e.parentNode.insertBefore(j, e);
+  })(document, 'script');
+});
+</script>
+
+</body>
+</html>
